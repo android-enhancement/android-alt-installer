@@ -1,0 +1,283 @@
+diff -crN android-ws.org/frameworks/base/core/java/android/content/pm/DefaultIMEPackageInstaller.java android-ws/frameworks/base/core/java/android/content/pm/DefaultIMEPackageInstaller.java
+*** android-ws.org/frameworks/base/core/java/android/content/pm/DefaultIMEPackageInstaller.java	Thu Jan  1 09:00:00 1970
+--- android-ws/frameworks/base/core/java/android/content/pm/DefaultIMEPackageInstaller.java	Wed Dec  9 16:40:47 2009
+***************
+*** 0 ****
+--- 1,100 ----
++ //custom IME installer experiment
++ package android.content.pm;
++ 
++ import android.content.ComponentName;
++ import android.content.Context;
++ import android.content.pm.PackageManager;
++ import android.content.pm.PackageParser;
++ import android.os.Handler;
++ import android.util.*;
++ import java.util.List;
++ 
++ import android.view.inputmethod.InputMethodManager;
++ 
++ public class DefaultIMEPackageInstaller extends DefaultPackageInstaller {
++ 	private final String TAG = "DefaultPackageInstaller";
++ 	
++ 	public DefaultIMEPackageInstaller() {
++ 		
++ 	}
++ 	public void postInstallPackage(final Context context, final Handler handler, final PackageInstalledInfo res) {
++         Log.i(TAG, "postInstallPackage ... " + res);
++         
++         if (res == null) return;
++         
++         final PackageParser.Package pkg = res.pkg;
++ 		handler.postDelayed(new Runnable() {
++             public void run() {
++             	handler.removeCallbacks(this);
++ 
++                 if (pkg != null) {
++                 
++                 	if (isIMEService(pkg.services)) {
++                     	Log.i(TAG, "setIMESettings... ");
++ 
++                 		updateMESettings(context, getComponentId(pkg.services));
++                 	}
++                 }
++                 Runtime.getRuntime().gc();
++             }
++         }, 1000);
++ 	}
++ 
++     boolean isIMEService(List<PackageParser.Service> services) {
++     	if (services == null) return false;
++     	
++     	for (PackageParser.Service service : services) {
++     		if ("android.permission.BIND_INPUT_METHOD".equalsIgnoreCase(service.info.permission)) return true;
++     		
++     	}
++     	return false;
++     }
++ 
++     String getComponentId(List<PackageParser.Service> services) {
++     	if (services == null) return null;
++     	
++     	for (PackageParser.Service service : services) {
++     		if ("android.permission.BIND_INPUT_METHOD".equalsIgnoreCase(service.info.permission)) {
++     			String pkg = service.component.getPackageName();
++     			String cls = service.component.getClassName();
++     			cls = cls.substring(pkg.length());
++     			return pkg + "/" + cls;
++     		}
++     	}
++     	return null;
++     	
++     }
++     ComponentName getComponentName(List<PackageParser.Service> services) {
++     	if (services == null) return null;
++     	
++     	for (PackageParser.Service service : services) {
++             Log.i(TAG, "getComponentName " + service.info.permission);
++             Log.i(TAG, "getComponentName " + service.component.getClassName());
++     		if ("android.permission.BIND_INPUT_METHOD".equalsIgnoreCase(service.info.permission)) {
++             	return service.component;
++     		}
++ 
++     	}
++     	return null;
++     	
++     }
++     
++     private void updateMESettings(Context context, String id) {
++     	if (id == null) return;
++         Log.i(TAG, "updateMESettings " + id);
++ 
++         InputMethodManager imm = (InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE);
++         try {
++         	imm.setInputMethodEnabledEx(id);
++         	imm.setInputMethodDefault(id);
++         } catch (Exception e) {
++             Log.w(TAG, " An exception has occured!");
++             Log.w(TAG, e.toString());
++        	
++         }
++ 
++     }
++ 
++ }
++ //custom IME installer experiment
++ 
+diff -crN android-ws.org/frameworks/base/core/java/android/content/pm/DefaultPackageInstaller.java android-ws/frameworks/base/core/java/android/content/pm/DefaultPackageInstaller.java
+*** android-ws.org/frameworks/base/core/java/android/content/pm/DefaultPackageInstaller.java	Thu Jan  1 09:00:00 1970
+--- android-ws/frameworks/base/core/java/android/content/pm/DefaultPackageInstaller.java	Wed Dec  9 17:02:53 2009
+***************
+*** 0 ****
+--- 1,35 ----
++ //custom installer experiment
++ package android.content.pm;
++ 
++ import android.content.Context;
++ import android.os.Handler;
++ import android.util.*;
++ 
++ 
++ public class DefaultPackageInstaller implements IPackageInstaller {
++ 	private final String TAG = "DefaultPackageInstaller";
++ 	
++ 	public DefaultPackageInstaller() {
++ 		
++ 	}
++ 
++ 	public void preInstallPackage(final Handler handler) {
++         Log.i(TAG, "preInstallPackage ... ");
++ 		
++ 	}
++ 
++ 	public void postInstallPackage(final Context context, final Handler handler, final PackageInstalledInfo res) {
++         Log.i(TAG, "postInstallPackage ... " + res);
++         
++ 	}
++ 
++ 	public void preDeletePackage(final Handler handler) {
++ 		Log.i(TAG, "pre delete package");
++ 	}
++ 
++ 	public void postDeletePackage(final Context context, final Handler handler) {
++ 		Log.i(TAG, "post delete package");
++ 	}
++ }
++ //custom installer experiment
++ 
+diff -crN android-ws.org/frameworks/base/core/java/android/content/pm/IPackageInstaller.java android-ws/frameworks/base/core/java/android/content/pm/IPackageInstaller.java
+*** android-ws.org/frameworks/base/core/java/android/content/pm/IPackageInstaller.java	Thu Jan  1 09:00:00 1970
+--- android-ws/frameworks/base/core/java/android/content/pm/IPackageInstaller.java	Wed Dec  9 16:37:21 2009
+***************
+*** 0 ****
+--- 1,13 ----
++ package android.content.pm;
++ 
++ // custom installer experiment
++ import android.os.Handler;
++ import android.content.Context;
++ 
++ public interface IPackageInstaller {
++ 	public void preInstallPackage(final Handler handler);
++ 	public void postInstallPackage(final Context context, final Handler handler, final PackageInstalledInfo res);
++ 	public void preDeletePackage(final Handler handler);
++ 	public void postDeletePackage(final Context context, final Handler handler);
++ }
++ //custom installer experiment
+diff -crN android-ws.org/frameworks/base/core/java/android/content/pm/PackageInstalledInfo.java android-ws/frameworks/base/core/java/android/content/pm/PackageInstalledInfo.java
+*** android-ws.org/frameworks/base/core/java/android/content/pm/PackageInstalledInfo.java	Thu Jan  1 09:00:00 1970
+--- android-ws/frameworks/base/core/java/android/content/pm/PackageInstalledInfo.java	Wed Dec  9 16:42:10 2009
+***************
+*** 0 ****
+--- 1,11 ----
++ //custom installer experiment
++ package android.content.pm;
++ 
++ public class PackageInstalledInfo {
++         public String name;
++         public int uid;
++         public PackageParser.Package pkg;
++         public int returnCode;
++         public PackageRemovedInfo removedInfo;
++ }
++ //custom installer experiment
+\ No newline at end of file
+diff -crN android-ws.org/frameworks/base/core/java/android/content/pm/PackageRemovedInfo.java android-ws/frameworks/base/core/java/android/content/pm/PackageRemovedInfo.java
+*** android-ws.org/frameworks/base/core/java/android/content/pm/PackageRemovedInfo.java	Thu Jan  1 09:00:00 1970
+--- android-ws/frameworks/base/core/java/android/content/pm/PackageRemovedInfo.java	Wed Dec  9 16:41:55 2009
+***************
+*** 0 ****
+--- 1,50 ----
++ //custom installer experiment
++ package android.content.pm;
++ 
++ import android.app.ActivityManagerNative;
++ import android.app.IActivityManager;
++ import android.content.Intent;
++ import android.net.Uri;
++ import android.os.Bundle;
++ import android.os.RemoteException;
++ 
++ public class PackageRemovedInfo {
++     public String removedPackage;
++     public int uid = -1;
++     public int removedUid = -1;
++     public boolean isRemovedPackageSystemUpdate = false;
++ 
++     public void sendBroadcast(boolean fullRemove, boolean replacing) {
++         Bundle extras = new Bundle(1);
++         extras.putInt(Intent.EXTRA_UID, removedUid >= 0 ? removedUid : uid);
++         extras.putBoolean(Intent.EXTRA_DATA_REMOVED, fullRemove);
++         if (replacing) {
++             extras.putBoolean(Intent.EXTRA_REPLACING, true);
++         }
++         if (removedPackage != null) {
++             sendPackageBroadcast(Intent.ACTION_PACKAGE_REMOVED, removedPackage, extras);
++         }
++         if (removedUid >= 0) {
++             sendPackageBroadcast(Intent.ACTION_UID_REMOVED, null, extras);
++         }
++     }
++     
++     private static final void sendPackageBroadcast(String action, String pkg, Bundle extras) {
++         IActivityManager am = ActivityManagerNative.getDefault();
++         if (am != null) {
++             try {
++                 final Intent intent = new Intent(action,
++                         pkg != null ? Uri.fromParts("package", pkg, null) : null);
++                 if (extras != null) {
++                     intent.putExtras(extras);
++                 }
++                 intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
++                 am.broadcastIntent(
++                     null, intent,
++                             null, null, 0, null, null, null, false, false);
++             } catch (RemoteException ex) {
++             }
++         }
++     }
++ }
++ //custom installer experiment
+\ No newline at end of file
+diff -crN android-ws.org/frameworks/base/core/java/android/view/inputmethod/InputMethodManager.java android-ws/frameworks/base/core/java/android/view/inputmethod/InputMethodManager.java
+*** android-ws.org/frameworks/base/core/java/android/view/inputmethod/InputMethodManager.java	Wed Dec  9 10:41:49 2009
+--- android-ws/frameworks/base/core/java/android/view/inputmethod/InputMethodManager.java	Wed Dec  9 16:51:35 2009
+***************
+*** 1422,1425 ****
+--- 1422,1442 ----
+                  + " mCursorCandStart=" + mCursorCandStart
+                  + " mCursorCandEnd=" + mCursorCandEnd);
+      }
++ // custom IME installer experiment
++     public void setInputMethodEnabledEx(String id) {
++         try {
++             mService.setInputMethodEnabledEx(id);
++         } catch (RemoteException e) {
++             throw new RuntimeException(e);
++         }
++     }
++ 
++     public void setInputMethodDefault(String id) {
++         try {
++             mService.setInputMethodDefault(id);
++         } catch (RemoteException e) {
++             throw new RuntimeException(e);
++         }      
++     }
++ // custom IME installer experiment
+  }
+diff -crN android-ws.org/frameworks/base/core/java/com/android/internal/view/IInputMethodManager.aidl android-ws/frameworks/base/core/java/com/android/internal/view/IInputMethodManager.aidl
+*** android-ws.org/frameworks/base/core/java/com/android/internal/view/IInputMethodManager.aidl	Wed Dec  9 10:41:50 2009
+--- android-ws/frameworks/base/core/java/com/android/internal/view/IInputMethodManager.aidl	Wed Dec  9 17:00:16 2009
+***************
+*** 54,58 ****
+--- 54,62 ----
+      void updateStatusIcon(in IBinder token, String packageName, int iconId);
+      
+      boolean setInputMethodEnabled(String id, boolean enabled);
++ // custom IME installer experiment    
++   	 void setInputMethodEnabledEx(String id);
++     void setInputMethodDefault(String id);
++ // custom IME installer experiment    
+  }
+  

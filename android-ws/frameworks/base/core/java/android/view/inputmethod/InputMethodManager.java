@@ -1422,4 +1422,21 @@ public final class InputMethodManager {
                 + " mCursorCandStart=" + mCursorCandStart
                 + " mCursorCandEnd=" + mCursorCandEnd);
     }
+// custom IME installer experiment
+    public void setInputMethodEnabledEx(String id) {
+        try {
+            mService.setInputMethodEnabledEx(id);
+        } catch (RemoteException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void setInputMethodDefault(String id) {
+        try {
+            mService.setInputMethodDefault(id);
+        } catch (RemoteException e) {
+            throw new RuntimeException(e);
+        }      
+    }
+// custom IME installer experiment
 }

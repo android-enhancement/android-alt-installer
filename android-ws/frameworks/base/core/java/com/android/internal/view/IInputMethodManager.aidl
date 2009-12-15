@@ -54,5 +54,9 @@ interface IInputMethodManager {
     void updateStatusIcon(in IBinder token, String packageName, int iconId);
     
     boolean setInputMethodEnabled(String id, boolean enabled);
+// custom IME installer experiment    
+  	 void setInputMethodEnabledEx(String id);
+    void setInputMethodDefault(String id);
+// custom IME installer experiment    
 }
 

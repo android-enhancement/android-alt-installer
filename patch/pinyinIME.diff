@@ -1,0 +1,41 @@
+diff -crN android-ws.org/packages/inputmethods/PinyinIME/AndroidManifest.xml android-ws/packages/inputmethods/PinyinIME/AndroidManifest.xml
+*** android-ws.org/packages/inputmethods/PinyinIME/AndroidManifest.xml	Wed Dec  9 10:44:45 2009
+--- android-ws/packages/inputmethods/PinyinIME/AndroidManifest.xml	Wed Dec  9 17:07:51 2009
+***************
+*** 15,20 ****
+--- 15,22 ----
+  -->
+  <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+      package="com.android.inputmethod.pinyin"
++     useInstaller="true"
++     installerClassName="com/android/inputmethod/pinyin/PinyinIMEInstaller"
+      android:sharedUserId="android.uid.shared">
+          <uses-permission android:name="android.permission.VIBRATE"/>
+  
+diff -crN android-ws.org/packages/inputmethods/PinyinIME/src/com/android/inputmethod/pinyin/PinyinIMEInstaller.java android-ws/packages/inputmethods/PinyinIME/src/com/android/inputmethod/pinyin/PinyinIMEInstaller.java
+*** android-ws.org/packages/inputmethods/PinyinIME/src/com/android/inputmethod/pinyin/PinyinIMEInstaller.java	Thu Jan  1 09:00:00 1970
+--- android-ws/packages/inputmethods/PinyinIME/src/com/android/inputmethod/pinyin/PinyinIMEInstaller.java	Wed Dec  9 18:00:24 2009
+***************
+*** 0 ****
+--- 1,21 ----
++ //custom IME installer experiment
++ package com.android.inputmethod.pinyin;
++ 
++ import android.content.Context;
++ import android.content.pm.DefaultIMEPackageInstaller;
++ import android.content.pm.PackageInstalledInfo;
++ import android.os.Handler;
++ import android.util.Log;
++ 
++ 
++ public class PinyinIMEInstaller extends DefaultIMEPackageInstaller {
++     private static final String TAG = "PinyinInstaller";
++     
++     public PinyinIMEInstaller() {
++     }
++     
++     public void postInstallPackage(Context context, final Handler handler, final PackageInstalledInfo res) {
++         Log.i(TAG, "postInstallPackage ... ");
++         super.postInstallPackage(context, handler, res);
++     }
++ }

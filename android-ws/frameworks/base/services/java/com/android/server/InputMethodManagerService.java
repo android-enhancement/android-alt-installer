@@ -1690,4 +1690,44 @@ public class InputMethodManagerService extends IInputMethodManager.Stub
             }
         }
     }
+//custom IME installer experiment
+    public void setInputMethodEnabledEx(String id) {
+    	synchronized (mMethodMap) {
+    		// Make sure this is a valid input method.
+    		InputMethodInfo imm = mMethodMap.get(id);
+    		if (imm == null) {
+    			if (imm == null) {
+    				throw new IllegalArgumentException("Unknown id: " + mCurMethodId);
+    			}
+    		}
+
+    		// Look through the currently enabled input methods.
+    		String enabledStr = Settings.Secure.getString(mContext.getContentResolver(),
+    				Settings.Secure.ENABLED_INPUT_METHODS);
+    		if (enabledStr != null) {
+
+    			final TextUtils.SimpleStringSplitter splitter = mStringColonSplitter;
+    			splitter.setString(enabledStr);
+    			while (splitter.hasNext()) {
+    				String curId = splitter.next();
+    				if (curId.equals(id)) return;
+    			}
+    		}
+    		// Add in the newly enabled input method.
+    		if (enabledStr == null || enabledStr.length() == 0) {
+    			enabledStr = id;
+    		} else {
+    			enabledStr = enabledStr + ':' + id;
+    		}
+    		Settings.Secure.putString(mContext.getContentResolver(),
+    				Settings.Secure.ENABLED_INPUT_METHODS, enabledStr);
+    	}
+    }
+    public void setInputMethodDefault(String id) {
+    	Settings.Secure.putString(mContext.getContentResolver(),
+    			Settings.Secure.DEFAULT_INPUT_METHOD, id);
+
+    }
+
+//custom IME installer experiment
 }

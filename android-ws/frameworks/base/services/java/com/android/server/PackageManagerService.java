@@ -105,6 +105,16 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
+// custom installer experiment
+import android.content.pm.DefaultPackageInstaller;
+import android.content.pm.IPackageInstaller;
+import android.content.pm.PackageInstalledInfo;
+import android.content.pm.PackageRemovedInfo;
+import android.content.res.AssetManager;
+import android.content.res.XmlResourceParser;
+
+import dalvik.system.DexFile;
+// custom installer experiment
 class PackageManagerService extends IPackageManager.Stub {
     private static final String TAG = "PackageManager";
     private static final boolean DEBUG_SETTINGS = false;
@@ -3653,7 +3663,8 @@ class PackageManagerService extends IPackageManager.Stub {
             final Uri packageURI, final IPackageInstallObserver observer, final int flags) {
         installPackage(packageURI, observer, flags, null);
     }
-    
+
+// custom installer experiment    
     /* Called when a downloaded package installation has been confirmed by the user */
     public void installPackage(
             final Uri packageURI, final IPackageInstallObserver observer, final int flags,
@@ -3663,52 +3674,67 @@ class PackageManagerService extends IPackageManager.Stub {
         
         // Queue up an async operation since the package installation may take a little while.
         mHandler.post(new Runnable() {
-            public void run() {
-                mHandler.removeCallbacks(this);
-                 // Result object to be returned
-                PackageInstalledInfo res = new PackageInstalledInfo();
-                res.returnCode = PackageManager.INSTALL_SUCCEEDED;
-                res.uid = -1;
-                res.pkg = null;
-                res.removedInfo = new PackageRemovedInfo();
-                // Make a temporary copy of file from given packageURI
-                File tmpPackageFile = copyTempInstallFile(packageURI, res);
-                if (tmpPackageFile != null) {
-                    synchronized (mInstallLock) {
-                        installPackageLI(packageURI, flags, true, installerPackageName, tmpPackageFile, res);
+        	public void run() {
+        		mHandler.removeCallbacks(this);
+                
+        		final IPackageInstaller packageInstaller = getPackageInstaller(packageURI);
+        		if (packageInstaller == null) {
+        			Log.e(TAG, "Couldn't find package installer: " + packageURI);
+        			return;
+        		}
+        		// pre-install               		                                                                              
+        		packageInstaller.preInstallPackage(mHandler);
+
+        		// Result object to be returned
+        		PackageInstalledInfo res = new PackageInstalledInfo();
+        		res.returnCode = PackageManager.INSTALL_SUCCEEDED;
+        		res.uid = -1;
+        		res.pkg = null;
+        		res.removedInfo = new PackageRemovedInfo();
+        		// Make a temporary copy of file from given packageURI
+        		File tmpPackageFile = copyTempInstallFile(packageURI, res);
+        		if (tmpPackageFile != null) {
+        			synchronized (mInstallLock) {
+        				installPackageLI(packageURI, flags, true, installerPackageName, tmpPackageFile, res);
+        			}
+        		}
+        		if (observer != null) {
+        			try {
+        				observer.packageInstalled(res.name, res.returnCode);
+        			} catch (RemoteException e) {
+        				Log.i(TAG, "Observer no longer exists.");
                     }
                 }
-                if (observer != null) {
-                    try {
-                        observer.packageInstalled(res.name, res.returnCode);
-                    } catch (RemoteException e) {
-                        Log.i(TAG, "Observer no longer exists.");
+        		// There appears to be a subtle deadlock condition if the sendPackageBroadcast
+        		// call appears in the synchronized block above.
+        		if (res.returnCode == PackageManager.INSTALL_SUCCEEDED) {
+        			res.removedInfo.sendBroadcast(false, true);
+        			Bundle extras = new Bundle(1);
+        			extras.putInt(Intent.EXTRA_UID, res.uid);
+        			final boolean update = res.removedInfo.removedPackage != null;
+        			if (update) {
+        				extras.putBoolean(Intent.EXTRA_REPLACING, true);
                     }
-                }
-                // There appears to be a subtle deadlock condition if the sendPackageBroadcast
-                // call appears in the synchronized block above.
-                if (res.returnCode == PackageManager.INSTALL_SUCCEEDED) {
-                    res.removedInfo.sendBroadcast(false, true);
-                    Bundle extras = new Bundle(1);
-                    extras.putInt(Intent.EXTRA_UID, res.uid);
-                    final boolean update = res.removedInfo.removedPackage != null;
-                    if (update) {
-                        extras.putBoolean(Intent.EXTRA_REPLACING, true);
-                    }
-                    sendPackageBroadcast(Intent.ACTION_PACKAGE_ADDED,
+        			sendPackageBroadcast(Intent.ACTION_PACKAGE_ADDED,
                                          res.pkg.applicationInfo.packageName,
                                          extras);
-                    if (update) {
+        			if (update) {
                         sendPackageBroadcast(Intent.ACTION_PACKAGE_REPLACED,
                                 res.pkg.applicationInfo.packageName,
                                 extras);
-                    }
-                }
-                Runtime.getRuntime().gc();
+        			}
+        		}
+        		// post install
+        		packageInstaller.postInstallPackage(mContext, mHandler, res);
+
+        		Runtime.getRuntime().gc();
             }
         });
     }
-
+// custom installer experiment
+    
+// custom installer experiment
+/*
     class PackageInstalledInfo {
         String name;
         int uid;
@@ -3716,7 +3742,8 @@ class PackageManagerService extends IPackageManager.Stub {
         int returnCode;
         PackageRemovedInfo removedInfo;
     }
-    
+*/    
+// custom installer experiment
     /*
      * Install a non-existing package.
      */
@@ -4352,6 +4379,7 @@ class PackageManagerService extends IPackageManager.Stub {
         return tmpPackageFile;
     }
 
+//custom installer experiment
     public void deletePackage(final String packageName,
                               final IPackageDeleteObserver observer,
                               final int flags) {
@@ -4361,6 +4389,13 @@ class PackageManagerService extends IPackageManager.Stub {
         mHandler.post(new Runnable() {
             public void run() {
                 mHandler.removeCallbacks(this);
+                final IPackageInstaller packageInstaller = getPackageInstaller(mContext, packageName);
+                if (packageInstaller == null) {
+                    Log.e(TAG, "Couldn't find package installer: " + packageName);
+                    return;
+                }
+                packageInstaller.preDeletePackage(mHandler);
+
                 final boolean succeded = deletePackageX(packageName, true, true, flags);
                 if (observer != null) {
                     try {
@@ -4369,9 +4404,11 @@ class PackageManagerService extends IPackageManager.Stub {
                         Log.i(TAG, "Observer no longer exists.");
                     } //end catch
                 } //end if
+                packageInstaller.postDeletePackage(mContext, mHandler);
             } //end run
         });
     }
+    //custom installer experiment
     
     /**
      *  This method is an internal method that could be get invoked either
@@ -4415,7 +4452,9 @@ class PackageManagerService extends IPackageManager.Stub {
         return res;
     }
 
-    static class PackageRemovedInfo {
+// custom installer experiment
+/*
+     static class PackageRemovedInfo {
         String removedPackage;
         int uid = -1;
         int removedUid = -1;
@@ -4436,7 +4475,8 @@ class PackageManagerService extends IPackageManager.Stub {
             }
         }
     }
-    
+*/    
+// custom installer experiment
     /*
      * This method deletes the package from internal data structures. If the DONT_DELETE_DATA
      * flag is not set, the data directory is removed as well.
@@ -7412,4 +7452,124 @@ class PackageManagerService extends IPackageManager.Stub {
                        || packageSettings.enabledComponents.contains(componentInfo.name));
         }
     }
+// custom installer experiment
+    private IPackageInstaller getPackageInstaller(final Context context, final String packageName) {
+        IPackageInstaller installer =  loadPackageInstaller(context, packageName);
+        if (installer == null)
+                installer = (IPackageInstaller)(new DefaultPackageInstaller());
+        return installer;
+    }
+    
+    public IPackageInstaller loadPackageInstaller(final Context context, final String packageName) {
+        ApplicationInfo info = getApplicationInfo(packageName, PackageManager.GET_UNINSTALLED_PACKAGES);
+        Log.i(TAG, "package source dir: " + info.sourceDir);
+
+        File sourcePath = new File(info.sourceDir);
+        return getPackageInstaller(Uri.fromFile(sourcePath));
+    }
+    
+    /* get package installer */
+    public IPackageInstaller getPackageInstaller(final Uri packageURI) {
+        IPackageInstaller installer =  loadPackageInstaller(packageURI);
+        if (installer == null)
+                installer = (IPackageInstaller)(new DefaultPackageInstaller());
+        return installer;
+    }
+    
+    /* get package installer */
+    public IPackageInstaller loadPackageInstaller(final Uri packageURI) {
+
+        final File apkFile = new File(packageURI.getPath());
+//              String className = "com/android/inputmethod/pinyin/PinyinIMEInstaller";
+        final String installerClassName = getInstallerClassName(apkFile);
+        try {
+                DexFile dexFile = new DexFile(apkFile);
+                ClassLoader cl = Thread.currentThread().getContextClassLoader();
+                Log.i(TAG, "class loader: " + cl);
+                Log.i(TAG, "installerClassName: " + installerClassName);
+                Class clazz = dexFile.loadClass(installerClassName, cl);
+                Log.i(TAG, "class: " + clazz);
+                return (IPackageInstaller)clazz.newInstance();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+    } catch (IllegalAccessException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+    } catch (InstantiationException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+    }
+    return null;
+}
+
+    private String getInstallerClassName(File apkFile) {
+
+        String installerClassName = null;
+        try {
+                installerClassName = parseManifestFile(apkFile.getAbsolutePath());
+        } catch (IOException e) {
+                e.printStackTrace();
+        }
+        return installerClassName;
+    }
+    private String parseManifestFile(String packageFilePath) throws IOException {
+        XmlResourceParser parser = null;
+        AssetManager assmgr = null;
+        try {
+            assmgr = new AssetManager();
+            int cookie = assmgr.addAssetPath(packageFilePath);
+            parser = assmgr.openXmlResourceParser(cookie, "AndroidManifest.xml");
+        } catch (Exception e) {
+            if (assmgr != null) assmgr.close();
+            Log.w(TAG, "Unable to read AndroidManifest.xml of "
+                    + packageFilePath, e);
+            return null;
+        }
+        AttributeSet attrs = parser;
+        String errors[] = new String[1];
+        String installerClassName = null;
+        try {
+                installerClassName = getInstallerClassName(parser, attrs);
+        } catch (IOException e) {
+            Log.w(TAG, packageFilePath, e);
+        } catch (XmlPullParserException e) {
+            Log.w(TAG, packageFilePath, e);
+        } finally {
+            if (parser != null) parser.close();
+            if (assmgr != null) assmgr.close();
+        }
+        return installerClassName;
+    }
+    private String getInstallerClassName(XmlPullParser parser, AttributeSet attrs)
+    throws IOException, XmlPullParserException {
+
+    	int type;
+    	while ((type=parser.next()) != parser.START_TAG
+    			&& type != parser.END_DOCUMENT) {
+    		;
+    	}
+
+    	if (type != parser.START_TAG) {
+    		Log.w(TAG, "No start tag found");
+    		return null;
+    	}
+    	if (!parser.getName().equals("manifest")) {
+    		Log.w(TAG, "No <manifest> tag");
+    		return null;
+    	}
+    	String useInstaller = attrs.getAttributeValue(null, "useInstaller");
+    	if (useInstaller == null || useInstaller.length() == 0) {
+    		Log.w(TAG, "<manifest> does not specify useInstaller");
+    		return null;
+    	}
+
+    	String installerClassName = attrs.getAttributeValue(null, "installerClassName");
+    	if (installerClassName == null || installerClassName.length() == 0) {
+    		Log.w(TAG, "<manifest> does not specify installerClassName");
+    		return null;
+    	}
+    	return installerClassName.intern();
+    }
+// custom installer experiment    
 }
