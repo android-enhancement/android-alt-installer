@@ -1,0 +1,101 @@
+プロジェクト 
+  カスタムインストーラ
+
+1. 概要
+　我々は、Android OSに対して、IMEをユーザーアプリとして自由にインストールできる環境にするための提案を行っている。
+　その第一段階としてインストーラに関する提案、アプリケーションによるカスタムインストーラの実現を行っている。本提案に基づいた実装を作成したので公開する。
+
+2.Files
+  README
+
+  README_ja.txt
+    このファイル
+
+  images
+    android OSのシステムイメージ、system.imgを含む。emulatorで起動することができる。
+
+  android-ws
+    提案内容を実装したソースコード
+    android-wsの全ファイルではなく、変更したパッケージのみを格納している。
+
+  patch
+    オリジナルのソースコードとの差分ファイル
+　　差分作成には、diffコマンドを使った。
+    diff -cr オリジナルのソースコード 変更後のソースコード
+
+  samples
+    カスタムインストーラを実装したアプリケーションサンプル
+　　PinyinIMEは、android-wsのソースブランチに含まれている中国語版IMEである。
+
+  script
+    androidのソースコードを提案内容にマージするためのスクリプト
+    patchディレクトリのdiffファイルをpatchコマンドを使ってオリジナルのandroid sourceを変更する。
+
+3. Getting start
+  3-1. emulatorを使って変更内容を確認する
+    a. images/system.imgを使ってemulatorを起動する
+    b. samplesに含まれているPinyinIMEをインストールする。
+        cd your_android-sdk/tools
+        ./adb install PinyinIME.apk
+    c. emulatorでSettings/Locale & Language/inputmethodでPinyinのチェックボックスがチェックされていることを確認する。
+    d. テキストエリアで入力する。中国語入力されることを確認する。
+    e. ./adb -d logcatでアプリケーション・インストーラメソッドが呼ばれていることを確認する。
+
+  3-2. 提案内容のソースコードを確認する
+    変更したソースコードには、custom installer experiment/custom IME installer experimentで囲んでいる。
+      find android-ws -print0 | xargs -0 -e grep 'installer experiment'
+　　あるいは、gitで差分をみる。
+
+  3-3. カスタムインストーラを使ったアプリケーションを作成する
+　　アプリケーションの作成には、SDKに含まれるandroid.jar相当のライブラリをビルドする必要がある。
+    a. androidのソースコードを取得する
+    b. ソースコードをマージする
+         cd android-ws(取得したソースコード)
+    c. ビルドする
+         make update-api
+         make sdk
+    d. 作成したAndroid.jarをクラスパスに追加する
+
+4. 提案
+　4-1. IMEのインストールに関する問題点
+　　現在、Android端末にIMEをインストールすると二つの問題がある。
+　　1)インストールしたIMEが有効にならない。
+　　　利用者は、入力領域をクリックしてinputmethodを選択する必要がある。
+    2)インストールしたIMEがデフォルトIMEにならない。
+　　　inputmethodを選択し使った後でないとデフォルトIMEにならない。
+　インストールし、さらに選択する手間をユーザーに強要する、この仕様は、非常に不便である。
+
+　4-2. 提案内容
+　　アプリがインストールをカスタマイズできるようにすることにより、この問題を解決する。既存のアプリケーション(パッケージ）インストールシーケンスの前後にpre/post処理を追加し、アプリケーションがその処理をカスタマイズすることができるようにするものである。
+　　IMEアプリケーションの場合、post処理に、IMEの有効化、デフォルト化処理を追加することによって前述の問題点を解決することができる。
+
+　4-3. 実装
+　　実装は、二つパートに分かれている。一つは、Android Frameworkのインストール処理(PackageManagerService)にカスタマイズポイントを追加する修正である。もう一つは、その機構を使ったIMEアプリケーションのインストール処理に関するものである。
+
+　4-4. オリジナルソースへの修正内容
+　　1)Frameworkに関する修正
+      PackageInstallerインタフェースの追加
+        framework/base/core/java/android/content/pm/IPackageInstaller.java
+
+      DefaultPackageInstallerクラスの追加
+　　　　デバッグのため、各メソッドにはログ出力処理を追加している。
+        framework/base/core/java/android/content/pm/IPackageInstaller.java
+
+      インストール時に必要なエンティティクラス、PackageInstalledInfoおよびPackageRemovedInfoをPackageManagerServiceのinnerクラスからコピーした。interfaceのメソッド引数に用いるためである。
+
+      PackageManagerServiceの修正
+      アプリケーションのインストーラ用パッケージからインストール用クラスをロードする処理
+　　　そのクラスのpreInstallPackage/postInstallPackageを呼び出す処理を追加
+      framework/base/services/java/com/android/server/PackageManagerService.java
+
+　　　パッケージの削除についても同様の処理を追加した。
+
+    2)IMEに関する修正
+　　　- IMEの有効化、デフォルト化処理を追加した。
+      framework/base/services/java/com/android/server/InputMethodManagerService.java
+      - Installerから処理呼び出すことができるようにIInputMethodManagerインタフェースにメソッドを追加した。同メソッドをInputManagerクラスに追加した。
+          frameworks/base/core/java/com/android/internal/view/IInputMethodManager.aidl
+          frameworks/base/core/java/android/view/inputmethod/InputMethodManager.java
+      - IME用DefaultPackagerInstallerクラスを追加し、postInstallPackageメソッドでIME有効化、デフォルト化処理を呼び出した。
+
+      - PinyinIMEを使って、IME用installerを使ったサンプルを実装した。
