@@ -1,0 +1,107 @@
+Project
+  alt installer for android
+
+1. Summary
+  My goal is that users can install IME as a user application on Android devices.
+  This project is my first proposal for Android OS, which improves the android package installer. It enables application developers customize the install procedure when their applications are installed.
+  I started this project for improvement of IME installer but the custom installer is useful for all applications.
+
+2.Files
+  README
+    readme written in English.
+
+  README_ja
+    readme written in Japanese.
+
+  images
+    This is an Android OS system image, system.img, that contains my proposal. You can try my proposal using the emulator in Android SDK 1.6 or later.
+
+  android-ws
+    This is a part of android source code that I modified, not a full part of it.
+
+  patch
+    There are three differential files. I created them using unix diff command as follow:
+    diff -cr original modified
+
+  samples
+    A sample application, PinyinIME, with the custom installer.
+　　PinyinIME is a Chinese IME included in android source branch.
+
+  script
+    This is a script that merge my modification to original android source with diff files.
+    
+3. Getting start
+  You can check my proposal in three ways. 
+
+  3-1. See how the custom installer works
+    a. run an emulator in android SDK with images/system.img.
+    b. install a sample application, PinyinIME.
+        cd your_android-sdk/tools
+        ./adb install PinyinIME.apk
+    c. In Settings/Locale & Language/inputmethod, you can see the Pinyin IME that is checked, which shows that Pinyin IME is now available. 
+    d. When you click on a text area, you can input Chinese text, which shows the Pinyin IME is now set as a default input method.
+    e. When you see a log data, you can find log messages that are written by the Pinyin IME custom installer.
+       ./adb -d logcat | grep PinyinIME
+
+  3-2. See how I modified
+    I surrounded source code I modified with a term, 'custom installer experiment' or 'custom IME installer experiment'. Therefore, you can find them as follows:
+      find your_android_source_root -print0 | xargs -0 -e grep 'installer experiment'
+
+　　You can also see the changes by a git command.
+
+  3-3. Create your own custom installer
+　　When You create your own custom installer, you have to create your own SDK.
+
+    a. get android source code
+    b. merge my changes to it
+         cd your_source_code_root
+         ../android-alt-installer/scripts/merge_code.sh ../android-alt-installer/path 
+    c. build
+         make update-api
+         make sdk
+    d. add Android.jar to classpath
+    e. create your own installer
+
+4. My proposal
+　4-1. issues about install IME
+　　There are two problems when you install a IME into your android devices,
+　　1) the IME does not become avaiable.
+　　　You have to do it by yourself; move Settings/Locale & Language/inputmethod dialog and you have to click the checkbox.
+    2) the IME does not become the default input method.
+　　　You have to do it by yourself. You select the IME as input method (step1) and use it.
+
+　Therefore, the current android framework is inconvenient for you to install the IME.
+
+　4-2. My Proposal
+　　My proposal is customizing android installer to solve these problems, which enables application developers add pre/post methods to the original installer.
+　　As a sample, I implemented an IME installer, which enables the IME available and set it the default input method.
+
+　4-3. Implementation
+　　There are two part of implementations. One is the modification of android framework in which I added to custom installer mechanism.  The other is the application for IME installer.
+
+　4-4. changes
+　　1) modification of Framework
+      add PackageInstaller interface
+        framework/base/core/java/android/content/pm/IPackageInstaller.java
+
+      add DefaultPackageInstaller class
+        Each methods of this class only writes a log message.
+        framework/base/core/java/android/content/pm/IPackageInstaller.java
+
+      move two classes, PackageInstalledInfo and PackageRemovedInfo from PackageManagerService, they are the inner classes, to framework/base/core/java/android/content/pm package because these classes are necessary as arguments of interface method.
+        	
+      modify PackageManagerService class
+        load an application installer class from the install package and call the preInstallPackage and postInstallPackage methods.
+      framework/base/services/java/com/android/server/PackageManagerService.java
+
+      I also modified the delete method in the same way.
+
+    2) modification for the IME installer
+　　　- add two methods to InputMethodManagerService class, which enable IMEs avaiable and set them as the default input method.
+      framework/base/services/java/com/android/server/InputMethodManagerService.java
+      - add methods to IInputMethodManager interface, which is necessary to call above methods from PackageManagerService.
+          frameworks/base/core/java/com/android/internal/view/IInputMethodManager.aidl
+          frameworks/base/core/java/android/view/inputmethod/InputMethodManager.java
+      - add DefaultIMEPackageInstaller that extends DefaultPackge and add procedures  to postInstallPackageMethod, which enable IMEs available and set the default input method.
+
+      - I created the custom installer for an IME application, PinyinIME.

@@ -1,26 +1,27 @@
-プロジェクト 
+﻿プロジェクト 
   カスタムインストーラ
 
 1. 概要
 　我々は、Android OSに対して、IMEをユーザーアプリとして自由にインストールできる環境にするための提案を行っている。
 　その第一段階としてインストーラに関する提案、アプリケーションによるカスタムインストーラの実現を行っている。本提案に基づいた実装を作成したので公開する。
+本プロジェクトは、IMEのインストールを改善する目的で始めたが、カスタムインストーラは、すべてのアプリケーションで有益であると考える。
 
 2.Files
   README
+    英語版readme
 
   README_ja.txt
-    このファイル
+    日本語版readme
 
   images
-    android OSのシステムイメージ、system.imgを含む。emulatorで起動することができる。
+    android OSのシステムイメージ、system.imgを含む。Android SDK 1.6以降のemulatorで起動することができる。
 
   android-ws
     提案内容を実装したソースコード
-    android-wsの全ファイルではなく、変更したパッケージのみを格納している。
+    androidの全ファイルではなく、変更したパッケージのみを格納している。
 
   patch
-    オリジナルのソースコードとの差分ファイル
-　　差分作成には、diffコマンドを使った。
+    オリジナルのソースコードとの差分ファイル。パッケージ別に３つのファイルに分かれている。差分作成には、unix diffコマンドを使った。
     diff -cr オリジナルのソースコード 変更後のソースコード
 
   samples
@@ -29,10 +30,12 @@
 
   script
     androidのソースコードを提案内容にマージするためのスクリプト
-    patchディレクトリのdiffファイルをpatchコマンドを使ってオリジナルのandroid sourceを変更する。
+    patchディレクトリのdiffファイルを引数にしてpatchコマンドを使ってオリジナルのandroid sourceを変更する。
 
 3. Getting start
-  3-1. emulatorを使って変更内容を確認する
+  3種類の方法で、提案内容をチェックすることができる。
+
+  3-1. どのように動作するか
     a. images/system.imgを使ってemulatorを起動する
     b. samplesに含まれているPinyinIMEをインストールする。
         cd your_android-sdk/tools
@@ -41,12 +44,12 @@
     d. テキストエリアで入力する。中国語入力されることを確認する。
     e. ./adb -d logcatでアプリケーション・インストーラメソッドが呼ばれていることを確認する。
 
-  3-2. 提案内容のソースコードを確認する
+  3-2. どのように実装しているか
     変更したソースコードには、custom installer experiment/custom IME installer experimentで囲んでいる。
       find android-ws -print0 | xargs -0 -e grep 'installer experiment'
 　　あるいは、gitで差分をみる。
 
-  3-3. カスタムインストーラを使ったアプリケーションを作成する
+  3-3. カスタムインストーラを作成する
 　　アプリケーションの作成には、SDKに含まれるandroid.jar相当のライブラリをビルドする必要がある。
     a. androidのソースコードを取得する
     b. ソースコードをマージする
@@ -55,8 +58,9 @@
          make update-api
          make sdk
     d. 作成したAndroid.jarをクラスパスに追加する
+    e. カスタムインストーラを作成する
 
-4. 提案
+4. 提案内容
 　4-1. IMEのインストールに関する問題点
 　　現在、Android端末にIMEをインストールすると二つの問題がある。
 　　1)インストールしたIMEが有効にならない。
@@ -96,6 +100,6 @@
       - Installerから処理呼び出すことができるようにIInputMethodManagerインタフェースにメソッドを追加した。同メソッドをInputManagerクラスに追加した。
           frameworks/base/core/java/com/android/internal/view/IInputMethodManager.aidl
           frameworks/base/core/java/android/view/inputmethod/InputMethodManager.java
-      - IME用DefaultPackagerInstallerクラスを追加し、postInstallPackageメソッドでIME有効化、デフォルト化処理を呼び出した。
+      - IME用DefaultPackageInstallerクラスを追加し、postInstallPackageメソッドでIME有効化、デフォルト化処理を呼び出した。
 
-      - PinyinIMEを使って、IME用installerを使ったサンプルを実装した。
+      - サンプルとして、PinyinIMEにIME用installerを追加した。
