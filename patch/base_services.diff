@@ -1,6 +1,6 @@
-diff -crN android-ws.org/frameworks/base/services/java/com/android/server/InputMethodManagerService.java android-ws/frameworks/base/services/java/com/android/server/InputMethodManagerService.java
-*** android-ws.org/frameworks/base/services/java/com/android/server/InputMethodManagerService.java	Wed Dec  9 10:41:55 2009
---- android-ws/frameworks/base/services/java/com/android/server/InputMethodManagerService.java	Wed Dec  9 16:56:32 2009
+diff -cr android-ws.org/frameworks/base/services/java/com/android/server/InputMethodManagerService.java android-ws/frameworks/base/services/java/com/android/server/InputMethodManagerService.java
+*** android-ws.org/frameworks/base/services/java/com/android/server/InputMethodManagerService.java	2010-01-04 14:49:29.000000000 +0900
+--- android-ws/frameworks/base/services/java/com/android/server/InputMethodManagerService.java	2010-01-04 14:54:34.000000000 +0900
 ***************
 *** 1690,1693 ****
 --- 1690,1733 ----
@@ -48,9 +48,9 @@ diff -crN android-ws.org/frameworks/base/services/java/com/android/server/InputM
 + 
 + //custom IME installer experiment
   }
-diff -crN android-ws.org/frameworks/base/services/java/com/android/server/PackageManagerService.java android-ws/frameworks/base/services/java/com/android/server/PackageManagerService.java
-*** android-ws.org/frameworks/base/services/java/com/android/server/PackageManagerService.java	Wed Dec  9 10:41:55 2009
---- android-ws/frameworks/base/services/java/com/android/server/PackageManagerService.java	Wed Dec  9 19:43:41 2009
+diff -cr android-ws.org/frameworks/base/services/java/com/android/server/PackageManagerService.java android-ws/frameworks/base/services/java/com/android/server/PackageManagerService.java
+*** android-ws.org/frameworks/base/services/java/com/android/server/PackageManagerService.java	2010-01-04 14:49:29.000000000 +0900
+--- android-ws/frameworks/base/services/java/com/android/server/PackageManagerService.java	2010-01-04 16:52:27.000000000 +0900
 ***************
 *** 105,110 ****
 --- 105,120 ----
@@ -307,7 +307,7 @@ diff -crN android-ws.org/frameworks/base/services/java/com/android/server/Packag
        * flag is not set, the data directory is removed as well.
 ***************
 *** 7412,7415 ****
---- 7452,7575 ----
+--- 7452,7578 ----
                          || packageSettings.enabledComponents.contains(componentInfo.name));
           }
       }
@@ -323,6 +323,7 @@ diff -crN android-ws.org/frameworks/base/services/java/com/android/server/Packag
 +         ApplicationInfo info = getApplicationInfo(packageName, PackageManager.GET_UNINSTALLED_PACKAGES);
 +         Log.i(TAG, "package source dir: " + info.sourceDir);
 + 
++         if (info.sourceDir == null) return null;
 +         File sourcePath = new File(info.sourceDir);
 +         return getPackageInstaller(Uri.fromFile(sourcePath));
 +     }
@@ -341,6 +342,8 @@ diff -crN android-ws.org/frameworks/base/services/java/com/android/server/Packag
 +         final File apkFile = new File(packageURI.getPath());
 + //              String className = "com/android/inputmethod/pinyin/PinyinIMEInstaller";
 +         final String installerClassName = getInstallerClassName(apkFile);
++         if (installerClassName == null) return null;
++         
 +         try {
 +                 DexFile dexFile = new DexFile(apkFile);
 +                 ClassLoader cl = Thread.currentThread().getContextClassLoader();
